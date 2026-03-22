@@ -1,0 +1,19 @@
+{
+    "grammars": [
+        {
+            "name": "duckyscript",
+            "scope": "source.dpds",
+            "path": ".",
+            "file-types": ["ds", "dpds"],
+            "highlights": "queries/highlights.scm",
+            "locals": "queries/locals.scm",
+            "tags": "queries/tags.scm"
+        }
+    ],
+    "metadata": {
+        "version": "1.0.0",
+        "description": "Tree-sitter grammar for duckyPad duckyScript",
+        "license": "MIT",
+        "authors": []
+    }
+}
