@@ -221,7 +221,7 @@ module.exports = grammar({
                     "keyword",
                     alias(choice("STRING", "STRINGLN"), $.string_keyword),
                 ),
-                field("content", $._string_content),
+                optional(field("content", $._string_content)),
                 /\r?\n/,
             ),
 
@@ -286,6 +286,7 @@ module.exports = grammar({
             seq(
                 alias("IF", $.keyword),
                 field("condition", $._expression),
+                optional(alias("THEN", $.keyword)),
                 /\r?\n/,
             ),
 
@@ -293,6 +294,7 @@ module.exports = grammar({
             seq(
                 alias("ELSE IF", $.keyword),
                 field("condition", $._expression),
+                optional(alias("THEN", $.keyword)),
                 /\r?\n/,
                 field("body", $.block_body),
             ),
@@ -376,19 +378,31 @@ module.exports = grammar({
                 ),
                 seq(
                     field("keyword", alias("VAR", $.keyword)),
-                    field("name", $.identifier),
+                    field("name", $._var_name),
                     optional(seq("=", field("value", $._expression))),
                     /\r?\n/,
                 ),
             ),
 
+        // Variable name in a VAR declaration: bare identifier OR $-prefixed identifier
+        _var_name: ($) => choice($.identifier, $.dollar_identifier),
+
         // DEFINE replaces its value as-is — treat the rest of the line as raw text
         _define_value: (_) => /.+/,
 
         // ── Assignment (variable = expr) ──────────────────────────────────────
+        // Left-hand side may be a bare identifier, a $-prefixed user variable,
+        // or a $-prefixed special variable (e.g. $_RANDOM_MIN = 0).
         assignment: ($) =>
             seq(
-                field("left", $.identifier),
+                field(
+                    "left",
+                    choice(
+                        $.identifier,
+                        $.dollar_identifier,
+                        $.dollar_reserved,
+                    ),
+                ),
                 field("operator", $.assignment_operator),
                 field("right", $._expression),
                 /\r?\n/,
@@ -420,6 +434,8 @@ module.exports = grammar({
                 $.function_call,
                 $.number,
                 $.reserved_variable,
+                $.dollar_reserved,
+                $.dollar_identifier,
                 $.identifier,
             ),
 
@@ -618,6 +634,14 @@ module.exports = grammar({
 
         // ── Numbers ───────────────────────────────────────────────────────────
         number: (_) => token(choice(/0x[0-9a-fA-F]+/, /[0-9]+/)),
+
+        // ── $-prefixed variable forms ──────────────────────────────────────────
+        // $varname  -- user variable referenced with explicit $ sigil
+        dollar_identifier: (_) => token(seq("$", /[a-zA-Z_][a-zA-Z0-9_]*/)),
+
+        // $_RESERVED  -- special/built-in variable referenced with $ sigil
+        // (e.g. $_RANDOM_INT, $_BLOCKING_READKEY used as lvalue $_RANDOM_MIN)
+        dollar_reserved: (_) => token(seq("$_", /[A-Z][A-Z0-9_]*/)),
 
         // ── Identifier (lowest priority — catches anything else) ───────────────
         identifier: (_) => /[a-zA-Z_][a-zA-Z0-9_]*/,

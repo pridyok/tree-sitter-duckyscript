@@ -1,0 +1,342 @@
+// TODO: Add HSL Support (convert)
+
+DEFAULTDELAY 25
+DEFAULTCHARDELAY 50
+
+DEFINE RE_UPPER_CW 21
+DEFINE RE_UPPER_CCW 22
+DEFINE RE_UPPER_PUSH 23
+
+DEFINE RE_LOWER_CW 24
+DEFINE RE_LOWER_CCW 25
+DEFINE RE_LOWER_PUSH 26
+
+DEFINE EXIT_KEY 17
+DEFINE RANDOM_KEY 18
+DEFINE APPLY_KEY 19
+DEFINE EXPORT_KEY 20
+
+DEFINE VALUE_MAX 255
+
+VAR $key_1_r = 999
+VAR $key_1_g = 999
+VAR $key_1_b = 999
+
+VAR $key_2_r = 999
+VAR $key_2_g = 999
+VAR $key_2_b = 999
+
+VAR $key_3_r = 999
+VAR $key_3_g = 999
+VAR $key_3_b = 999
+
+VAR $random_r = 100
+VAR $random_g = 100
+VAR $random_b = 100
+
+VAR $index = 0
+VAR $r = 0
+VAR $g = 0
+VAR $b = 0
+VAR $current = 0
+
+VAR $amount = 1
+
+VAR $fun_arg = 0
+FUNCTION increase()
+    $fun_arg = $fun_arg + $amount
+    IF $fun_arg > VALUE_MAX THEN
+        $fun_arg = VALUE_MAX
+    END_IF
+END_FUNCTION
+
+FUNCTION decrease()
+    IF $amount > $fun_arg THEN
+        $fun_arg = 0
+    ELSE
+        $fun_arg = $fun_arg - $amount
+    END_IF
+END_FUNCTION
+
+FUNCTION update_random()
+    $_RANDOM_MIN = 0
+    $_RANDOM_MAX = 255
+    // SWC_SET RANDOM_KEY $_RANDOM_INT $_RANDOM_INT $_RANDOM_INT
+    $random_r = $_RANDOM_INT
+    $random_g = $_RANDOM_INT
+    $random_b = $_RANDOM_INT
+    SWC_SET RANDOM_KEY $random_r $random_g $random_b
+END_FUNCTION
+
+// TODO: Add random mod to apply to only R / G / B: MAKE EXIT KEY A "LOCK" KEY TO LOCK CURRENT R / G / B (indicated on OLED) AND USE +/- for EXIT
+// TODO: UPDATE FUNCTIONALITY TO INSTEAD APPLY RANDOM COLOR THAT IS ON THE BUTTON TO ALL
+
+FUNCTION random()
+    $_RANDOM_MIN = 0
+    $_RANDOM_MAX = 255
+    $r = $_RANDOM_INT
+    $g = $_RANDOM_INT
+    $b = $_RANDOM_INT
+END_FUNCTION
+
+FUNCTION print_keymap()
+    OLED_CURSOR 0 117
+    OLED_PRINT X
+    OLED_CURSOR 7 117
+    OLED_CURSOR 13 117
+    OLED_PRINT |
+    OLED_CURSOR 26 117
+    OLED_PRINT RND
+    OLED_CURSOR 47 117
+    OLED_CURSOR 53 117
+    OLED_PRINT |
+    OLED_CURSOR 66 117
+    OLED_PRINT SET
+    OLED_CURSOR 87 117
+    OLED_CURSOR 93 117
+    OLED_PRINT |
+    OLED_CURSOR 106 117
+    OLED_PRINT EXP
+    OLED_CURSOR 127 117
+END_FUNCTION
+
+// TODO: OUTPUT FOOTER WITH ACTION KEY LABELS
+FUNCTION update()
+    update_random()
+
+    OLED_CLEAR
+    OLED_CURSOR 5 20
+    OLED_PRINT Red: $r
+    OLED_CURSOR 5 40
+    OLED_PRINT Green: $g
+    OLED_CURSOR 5 60
+    OLED_PRINT Blue: $b
+
+    IF $index == 0 THEN
+        OLED_RECT 0 14 127 34 0
+    ELSE IF $index == 1 THEN
+        OLED_RECT 0 34 127 54 0
+    ELSE IF $index == 2 THEN
+        OLED_RECT 0 54 127 74 0
+    END_IF
+
+    print_keymap()
+
+    IF $key_1_r != 999 THEN
+        SWC_SET 1 $key_1_r $key_1_g $key_1_b
+    ELSE
+        SWC_SET 1 $r $g $b
+    END_IF
+
+    IF $key_2_r != 999 THEN
+        SWC_SET 2 $key_2_r $key_2_g $key_2_b
+    ELSE
+        SWC_SET 2 $r $g $b
+    END_IF
+
+    IF $key_3_r != 999 THEN
+        SWC_SET 3 $key_3_r $key_3_g $key_3_b
+    ELSE
+        SWC_SET 3 $r $g $b
+    END_IF
+
+    SWC_SET 13 $r $g $b
+    SWC_SET 14 $r $g $b
+    SWC_SET 15 $r $g $b
+    SWC_SET 16 $r $g $b
+
+    OLED_UPDATE
+END_FUNCTION
+
+VAR $dot_count = 1
+FUNCTION display_exporting()
+    OLED_CLEAR
+    OLED_CURSOR 22 59
+    OLED_PRINT Exporting
+
+    VAR $dot_index = 0
+    WHILE $dot_index < $dot_count
+        OLED_PRINT .
+        $dot_index = $dot_index + 1
+    END_WHILE
+
+    OLED_CIRCLE CIRCLE_FRAME
+    OLED_UPDATE
+
+    $dot_count = $dot_count + 1
+    IF $dot_count > 3 THEN
+        $dot_count = 1
+    END_IF
+END_FUNCTION
+
+FUNCTION export()
+    DEFINE CIRCLE_FRAME 64 64 56 0
+
+    OLED_CLEAR
+    OLED_CURSOR 22 54
+    OLED_PRINT Open editor.
+    OLED_CURSOR 22 64
+    OLED_PRINT Press a key.
+    OLED_CIRCLE CIRCLE_FRAME
+    OLED_UPDATE
+
+    VAR $input_confirm = $_BLOCKING_READKEY
+
+    OLED_CLEAR
+
+    IF $input_confirm == EXIT_KEY THEN
+        RETURN
+    END_IF
+
+    display_exporting()
+    DELAY 100
+
+    IF $key_1_r != 999 THEN
+        STRINGLN Key 1: $key_1_r $key_1_g $key_1_b
+        DELAY 50
+        display_exporting()
+        DELAY 100
+    END_IF
+
+    IF $key_2_r != 999 THEN
+        STRINGLN Key 2: $key_2_r $key_2_g $key_2_b
+        DELAY 50
+        display_exporting()
+        DELAY 100
+    END_IF
+
+    IF $key_3_r != 999 THEN
+        STRINGLN Key 3: $key_3_r $key_3_g $key_3_b
+        DELAY 50
+        display_exporting()
+        DELAY 100
+    END_IF
+
+    STRINGLN
+    STRING Current Colour: $r $g $b
+
+    OLED_CLEAR
+    OLED_CURSOR 22 59
+    OLED_PRINT Yay colours!
+    OLED_CIRCLE CIRCLE_FRAME
+    OLED_UPDATE
+
+    // TODO: Apply animated rainbow effect on keys
+END_FUNCTION
+
+SWC_SET EXIT_KEY 255 0 0
+SWC_SET APPLY_KEY 0 0 255
+SWC_SET EXPORT_KEY 0 255 0
+WHILE $index < 3
+    update()
+
+    VAR $this_key = $_BLOCKING_READKEY
+
+    VAR $apply_mode = 0
+    IF $this_key == APPLY_KEY THEN
+        $apply_mode = 1
+        $this_key = $_BLOCKING_READKEY
+    END_IF
+
+    IF $index == 0 THEN
+        $current = $r
+    ELSE IF $index == 1 THEN
+        $current = $g
+    ELSE IF $index == 2 THEN
+        $current = $b
+    END_IF
+
+    // TODO: Allow setting jump amount for non-smooth encoder
+    IF $this_key == RE_UPPER_CW THEN
+        $amount = 10
+        $fun_arg = $current
+        increase()
+        $current = $fun_arg
+    ELSE IF $this_key == RE_UPPER_CCW THEN
+        $amount = 10
+        $fun_arg = $current
+        decrease()
+        $current = $fun_arg
+    ELSE IF $this_key == RE_UPPER_PUSH THEN
+        IF $index < 2 THEN
+            $index = $index + 1
+        ELSE
+            $index = 0
+        END_IF
+
+        CONTINUE
+    ELSE IF $this_key == RE_LOWER_CW THEN
+        $amount = 1
+        $fun_arg = $current
+        increase()
+        $current = $fun_arg
+    ELSE IF $this_key == RE_LOWER_CCW THEN
+        $amount = 1
+        $fun_arg = $current
+        decrease()
+        $current = $fun_arg
+    ELSE IF $this_key == RE_LOWER_PUSH THEN
+        IF $index > 0 THEN
+            $index = $index - 1
+        ELSE
+            $index = 2
+        END_IF
+
+        CONTINUE
+    ELSE IF $this_key == 1 THEN
+        IF $apply_mode == 1 && $key_1_r != 999 THEN
+            $r = $key_1_r
+            $g = $key_1_g
+            $b = $key_1_b
+            CONTINUE
+        ELSE
+            $key_1_r = $r
+            $key_1_g = $g
+            $key_1_b = $b
+        END_IF
+    ELSE IF $this_key == 2 THEN
+        IF $apply_mode == 1 && $key_2_r != 999 THEN
+            $r = $key_2_r
+            $g = $key_2_g
+            $b = $key_2_b
+            CONTINUE
+        ELSE
+            $key_2_r = $r
+            $key_2_g = $g
+            $key_2_b = $b
+        END_IF
+    ELSE IF $this_key == 3 THEN
+        IF $apply_mode == 1 && $key_3_r != 999 THEN
+            $r = $key_3_r
+            $g = $key_3_g
+            $b = $key_3_b
+            CONTINUE
+        ELSE
+            $key_3_r = $r
+            $key_3_g = $g
+            $key_3_b = $b
+        END_IF
+    ELSE IF $this_key == RANDOM_KEY THEN
+        $r = $random_r
+        $g = $random_g
+        $b = $random_b
+        CONTINUE
+    ELSE IF $this_key == EXPORT_KEY THEN
+        export()
+        DELAY 2000
+
+        SWC_RESET 99
+        HALT
+    ELSE
+	    SWC_RESET 99
+        HALT
+    END_IF
+
+    IF $index == 0 THEN
+        $r = $current
+    ELSE IF $index == 1 THEN
+        $g = $current
+    ELSE IF $index == 2 THEN
+        $b = $current
+    END_IF
+END_WHILE

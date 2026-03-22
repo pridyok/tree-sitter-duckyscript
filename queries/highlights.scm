@@ -153,6 +153,12 @@
 
 (reserved_variable) @variable.builtin
 
+(dollar_reserved) @variable.builtin
+
+; --- Dollar-prefixed user variables -------------------------------------
+
+(dollar_identifier) @variable
+
 ; --- Numbers ------------------------------------------------------------
 
 (number) @number

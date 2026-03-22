@@ -18,6 +18,9 @@
 (declaration
   name: (identifier) @local.definition)
 
+(declaration
+  name: (dollar_identifier) @local.definition)
+
 ; DEFINE declaration -- defines a constant in the current scope
 (declaration
   name: (constant) @local.definition)
@@ -35,6 +38,12 @@
 ; Any bare identifier that is not a definition site is a reference
 (identifier) @local.reference
 
+; Dollar-prefixed user variables
+(dollar_identifier) @local.reference
+
+; Dollar-prefixed special/built-in variables
+(dollar_reserved) @local.reference
+
 ; Interpolated variable names are also references
 (interpolation
   (identifier) @local.reference)
@@ -42,3 +51,9 @@
 ; Left-hand side of assignment references (and re-binds) a variable
 (assignment
   left: (identifier) @local.reference)
+
+(assignment
+  left: (dollar_identifier) @local.reference)
+
+(assignment
+  left: (dollar_reserved) @local.reference)
