@@ -1214,7 +1214,7 @@ VAR r = ULT(x, y)
     (keyword)
     (identifier)
     (function_call
-      (identifier)
+      (command_keyword)
       (argument_list
         (identifier)
         (identifier)))))
@@ -1321,7 +1321,7 @@ VAR r = RANDINT(1, 10)
     (keyword)
     (identifier)
     (function_call
-      (identifier)
+      (command_keyword)
       (argument_list
         (number)
         (number)))))

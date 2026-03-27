@@ -122,7 +122,7 @@ module.exports = grammar({
         $._stringln_block_content, // raw text inside STRINGLN_BLOCK … END_STRINGLN
     ],
 
-    extras: ($) => [/[ \t]/],
+    extras: ($) => [/[ \t]/, $.comment],
 
     // The word rule enables keyword extraction: any string literal used in the
     // grammar (e.g. "RETURN", "IF", "WHILE") will automatically have higher
@@ -431,7 +431,9 @@ module.exports = grammar({
             choice(
                 $.binary_expression,
                 $.unary_expression,
+                $.parenthesized_expression,
                 $.function_call,
+                $.char_literal,
                 $.number,
                 $.reserved_variable,
                 $.dollar_reserved,
@@ -484,25 +486,37 @@ module.exports = grammar({
             ),
 
         // ── Function call (expression context) ────────────────────────────────
+        // The callee may be a user-defined function name (identifier) OR a
+        // built-in command used in function-call style, e.g. POKE32(addr, val),
+        // PEEK32(addr), RANDINT(lo, hi).
         function_call: ($) =>
-            seq(
-                field("name", $.identifier),
-                "(",
-                optional(field("args", $.argument_list)),
-                ")",
+            prec(
+                1,
+                seq(
+                    field("name", choice($.identifier, $.command_keyword)),
+                    "(",
+                    optional(field("args", $.argument_list)),
+                    ")",
+                ),
             ),
 
         argument_list: ($) =>
-            seq($._expression, repeat(seq(",", $._expression))),
+            prec(2, seq($._expression, repeat(seq(",", $._expression)))),
 
         // ── Function call as a standalone statement ────────────────────────────
+        // Also allows built-in command keywords in call syntax:
+        //   POKE32(base_addr, word0)
+        //   PEEK32(base_addr + 4)
         function_call_statement: ($) =>
-            seq(
-                field("name", $.identifier),
-                "(",
-                optional(field("args", $.argument_list)),
-                ")",
-                /\r?\n/,
+            prec(
+                1,
+                seq(
+                    field("name", choice($.identifier, $.command_keyword)),
+                    "(",
+                    optional(field("args", $.argument_list)),
+                    ")",
+                    /\r?\n/,
+                ),
             ),
 
         // ── Key press (one or more key names on a line) ────────────────────────
@@ -631,6 +645,17 @@ module.exports = grammar({
                     ...[...Array(32).keys()].map((i) => `_GV${i}`),
                 ),
             ),
+
+        // ── Parenthesized expression ───────────────────────────────────────────
+        // Allows grouping for operator precedence: (a & 0xFF) << 24
+        parenthesized_expression: ($) =>
+            seq("(", field("inner", $._expression), ")"),
+
+        // ── Character literals ────────────────────────────────────────────────
+        // Single character in single or double quotes: 'H', "e"
+        // The value is treated as its 8-bit ASCII code.
+        char_literal: (_) =>
+            token(choice(seq("'", /[^']/, "'"), seq('"', /[^"]/, '"'))),
 
         // ── Numbers ───────────────────────────────────────────────────────────
         number: (_) => token(choice(/0x[0-9a-fA-F]+/, /[0-9]+/)),

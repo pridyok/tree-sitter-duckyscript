@@ -1,0 +1,149 @@
+// ============================================================
+// String Bitpacking Library
+// Packs up to 4 ASCII characters into a single 32-bit integer
+// using bitwise operators.
+//
+// Layout of a packed 32-bit int (big-endian character order):
+//
+//   Bit 31-24 | Bit 23-16 | Bit 15-8 | Bit 7-0
+//   char[0]   | char[1]   | char[2]  | char[3]
+//
+// char[0] is the leftmost / first character of the chunk.
+// Unused character slots are zero (null).
+// ============================================================
+
+
+// ------------------------------------------------------------
+// FUN pack_chars(a, b, c, d)
+//
+// Packs four individual ASCII character values into one 32-bit
+// integer.
+//
+// Parameters:
+//   a - 1st character value (occupies bits 31-24)
+//   b - 2nd character value (occupies bits 23-16)
+//   c - 3rd character value (occupies bits 15-8)
+//   d - 4th character value (occupies bits 7-0)
+//
+// Returns: packed 32-bit integer
+//
+// Usage:
+//   VAR word = pack_chars('H', 'e', 'l', 'o')
+// ------------------------------------------------------------
+FUN pack_chars(a, b, c, d)
+    VAR packed = 0
+    packed = (a & 0xFF) << 24
+    packed = packed | ((b & 0xFF) << 16)
+    packed = packed | ((c & 0xFF) << 8)
+    packed = packed | (d & 0xFF)
+    RETURN packed
+END_FUN
+
+
+// ------------------------------------------------------------
+// FUN unpack_char(packed, index)
+//
+// Extracts a single character value from a packed 32-bit integer.
+//
+// Parameters:
+//   packed - the 32-bit packed integer
+//   index  - which character to extract (0 = leftmost, 3 = rightmost)
+//
+// Returns: the ASCII value of the character at that index
+//
+// Usage:
+//   VAR ch = unpack_char(word, 0)   // extracts 'H' from 'H','e','l','o'
+// ------------------------------------------------------------
+FUN unpack_char(packed, index)
+    VAR shift = (3 - index) * 8
+    RETURN (packed >> shift) & 0xFF
+END_FUN
+
+
+// ------------------------------------------------------------
+// FUN store_string(str_id, c0, c1, c2, c3, c4, c5, c6, c7)
+//
+// Packs a string of up to 8 characters into TWO 32-bit packed
+// integers, and stores them in scratch memory.
+//
+// Scratch memory layout per string (8 bytes = 2 slots of 4):
+//   0xF400 + (str_id * 8) + 0  ->  POKE32: chars 0-3
+//   0xF400 + (str_id * 8) + 4  ->  POKE32: chars 4-7
+//
+// Parameters:
+//   str_id - index of the string slot (0-127, giving 128 strings max)
+//   c0..c7 - ASCII character values, use 0 for unused slots
+//
+// Usage:
+//   store_string(0, 'H','e','l','l','o','!',0,0)
+// ------------------------------------------------------------
+FUN store_string(str_id, c0, c1, c2, c3, c4, c5, c6, c7)
+    VAR base_addr = 0xF400 + (str_id * 8)
+
+    // Pack and store first 4 characters
+    VAR word0 = pack_chars(c0, c1, c2, c3)
+    POKE32(base_addr, word0)
+
+    // Pack and store second 4 characters
+    VAR word1 = pack_chars(c4, c5, c6, c7)
+    POKE32(base_addr + 4, word1)
+END_FUN
+
+
+// ------------------------------------------------------------
+// FUN load_char(str_id, char_index)
+//
+// Retrieves a single character from a stored string by its
+// string slot ID and character index (0-7).
+//
+// Parameters:
+//   str_id     - the string slot index used in store_string()
+//   char_index - position of the character to read (0-7)
+//
+// Returns: ASCII value of the character
+// ------------------------------------------------------------
+FUN load_char(str_id, char_index)
+    VAR base_addr = 0xF400 + (str_id * 8)
+
+    // Determine which 32-bit word the character lives in
+    VAR word = 0
+    IF char_index < 4
+        word = PEEK32(base_addr)
+    ELSE
+        word = PEEK32(base_addr + 4)
+        char_index = char_index - 4   // normalize index into second word
+    END_IF
+
+    RETURN unpack_char(word, char_index)
+END_FUN
+
+
+// ============================================================
+// DEMO
+// ============================================================
+
+// --- Pack individual characters manually ---
+VAR my_word = pack_chars('D', 'u', 'c', 'k')
+
+// Print the packed integer in hex to verify bit layout
+STRING Packed "Duck" as hex: $my_word%X
+ENTER
+
+// Unpack and print each character's ASCII value
+VAR ch0 = unpack_char(my_word, 0)
+VAR ch1 = unpack_char(my_word, 1)
+VAR ch2 = unpack_char(my_word, 2)
+VAR ch3 = unpack_char(my_word, 3)
+STRING Char 0 ASCII: $ch0  Char 1 ASCII: $ch1  Char 2 ASCII: $ch2  Char 3 ASCII: $ch3
+ENTER
+
+// --- Store a full 8-character string in scratch memory ---
+store_string(0, 'H','e','l','l','o','!',0,0)
+
+// Read back individual characters by index
+VAR r0 = load_char(0, 0)
+VAR r1 = load_char(0, 1)
+VAR r4 = load_char(0, 4)
+VAR r5 = load_char(0, 5)
+STRING Slot 0 char[0] ASCII=$r0  char[1] ASCII=$r1  char[4] ASCII=$r4  char[5] ASCII=$r5
+ENTER
